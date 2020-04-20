@@ -1,6 +1,7 @@
 import sys
 import os
 import pygame
+from pygame.locals import HWSURFACE, DOUBLEBUF, RESIZABLE
 xlen = 10
 ylen = 10
 
@@ -12,8 +13,8 @@ class board:
         self.board = []
 
     def init_board(self):
-        self.arr = [[cell(x, y, board=self) for y in range(1, ylen+1)]
-                    for x in range(1, xlen+1)]
+        self.arr = [[cell(x, y, board=self) for y in range(1, self.ylen+1)]
+                    for x in range(1, self.xlen+1)]
 
     def init_board_cells(self):
         try:
@@ -66,17 +67,26 @@ class cell():
         self.capacity = len(self.n)-1
 
     def move(self):
+        print('started moving {0} {1}'.format(self.x, self.y))
         if self.number < self.capacity:
             self.number += 1
         else:
             self.number = 0
             myside = self.side
             self.side = None
-            for x, y in self.n:
-                a = self.b.arr[x-1][y-1]
-                a.side = myside
-                a.move()
-
+            try:
+                for x, y in self.n:
+                    a = self.b.arr[x-1][y-1]
+                    a.side = myside
+                    a.move()
+            except RecursionError:
+                print("Too much recursion in call, aborting...")
+        if hasattr(self, 'btn'):
+            if self.number > 0:
+                self.btn.img = green[self.number-1]
+            else:
+                self.btn.img = None
+            self.btn.draw()
 
 def input_move(myside, board1):
     while True:
@@ -148,11 +158,82 @@ display_height = 800
 display_width = 600
 green = (0, 255, 0)
 white = (255, 255, 255)
-gameDisplay = pygame.display.set_mode((display_width, display_height))
+black = (0, 0, 0)
+blue = (0, 0, 255)
+gray = (220, 220, 220)
+gameDisplay = pygame.display.set_mode(
+    (display_width, display_height), HWSURFACE | DOUBLEBUF | RESIZABLE)
 pygame.display.set_caption('chain reaction')
 clock = pygame.time.Clock()
 if getattr(sys, 'frozen', False):
     os.chdir(os.path.dirname(sys.executable))
+
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+inactive_color = white
+active_color = gray
+clicked_color = blue
+gameIcon = pygame.image.load('imgs/gameIcon.png')
+pygame.display.set_icon(gameIcon)
+try:
+    red = [pygame.image.load(resource_path('imgs/one_red.png')), pygame.image.load(
+        'imgs/two_red.png'), pygame.image.load('imgs/three_red.png')]
+    green = [pygame.image.load('imgs/one_green.png'), pygame.image.load(
+        'imgs/two_green.png'), pygame.image.load('imgs/three_green.png')]
+except pygame.error:
+    print("couldn't open images")
+
+class Button():
+    def __init__(self, x, y, w, h, c):
+        self.rect = pygame.Rect(x, y, w, h)
+        self.color = inactive_color
+        self.c=c
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+    def draw(self, img = None):
+        print(f'drawn {self.x} {self.y} at rect {self.rect}')
+        pygame.draw.rect(gameDisplay, self.color, self.rect)
+        pygame.draw.rect(gameDisplay, (0, 0, 0), self.rect, 1)
+        if img != None:
+            self.img = img
+        if hasattr(self, 'img') and self.img!=None:
+            gameDisplay.blit(pygame.transform.scale(self.img, (self.w, self.h)), (self.x, self.y))
+            print(f'so got an image for it')
+    def __str__(self):
+        return str(self.rect)
+
+
+def writeText(text='Sample text', textfont='freesansbold.ttf', textsize=50, textcolor=black, x=display_width/2, y=display_height/2):
+    textS = pygame.font.Font(textfont, textsize).render(text, True, textcolor)
+    textR = textS.get_rect()
+    textR.center = (int(x), int(y))
+    gameDisplay.blit(textS, textR)
+
+
+def img_button(img, x, y, w, h, ic, ac, border, cell, action=None):
+    mouse = pygame.mouse.get_pos()
+    click = pygame.mouse.get_pressed()
+    if x+w > mouse[0] > x and y+h > mouse[1] > y:
+        pygame.draw.rect(gameDisplay, ac, (x, y, w, h), border)
+        if click[0] == 1 and action != None:
+            print('clicked an img button')
+            action()
+            print(cell.b)
+
+    else:
+        pygame.draw.rect(gameDisplay, ic, (x, y, w, h))
+    img = pygame.transform.scale(img, (w, h))
+    gameDisplay.blit(img, (x, y))
 
 
 def interactive_button(txt, x, y, w, h, ic, ac, action=None):
@@ -167,7 +248,92 @@ def interactive_button(txt, x, y, w, h, ic, ac, action=None):
     writeText(txt, textsize=int(0.8*h), x=x+w/2, y=y+h/2)
 
 
-def play_display():
+def empty_button(x, y, w, h, ic, ac, border, c, side):
+    mouse = pygame.mouse.get_pos()
+    click = pygame.mouse.get_pressed()
+    if x+w > mouse[0] > x and y+h > mouse[1] > y:
+        pygame.draw.rect(gameDisplay, ac, (x, y, w, h))
+        if click[0] == 1:
+            print('clicked an empty button')
+            c.side = side
+            c.move()
+            print(c.b)
+    else:
+        pygame.draw.rect(gameDisplay, ic, (x, y, w, h))
+
+
+def oops():
+    print("that's not your cell")
+
+
+sideref = 0
+sides = ['a', 'c']
+
+
+def movefromside(cell, side):
+    cell.side=side
+    cell.move()
+    global sideref
+    sideref = 1-sideref
+
+sideref = 0
+count = 0
+def display_00cell(b):
+    global count
+    if count < 10:
+        print(b.arr[0][0].side)
+    count += 1
+def play_display(b=board1):
+    b.init_board()
+    b.init_board_cells()
     gameExit = False
+    global sideref
+    sides = ['a', 'c']
+    x_init, y_init = 0, 0
+    xlen, ylen = b.ylen, b.xlen
+    x_dstep = int(display_width/b.ylen)
+    y_dstep = int(display_height/b.xlen)
+    x_dstep = y_dstep = min(x_dstep, y_dstep)
+    buttonlist = []
+    for i in range(ylen):
+        for j in range(xlen):
+            x = x_init + j * x_dstep
+            y = y_init + i * y_dstep
+            b.arr[i][j].btn = Button(x, y, x_dstep, y_dstep, b.arr[i][j])
+            buttonlist.append(b.arr[i][j].btn)
+            
+    gameDisplay.fill(white)
+    for button in buttonlist:
+        button.draw()
+        print(button)
+    hovered_list = []
     while not gameExit:
-        pass
+        turn = sides[sideref]
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                gameExit = True
+            if event.type ==pygame.MOUSEBUTTONDOWN:
+                for button in buttonlist:
+                    if button.rect.collidepoint(event.pos):
+                        button.c.move()
+                        button.draw()
+                break
+            if event.type == pygame.MOUSEMOTION:
+                for btton in buttonlist:
+                    print(f"{btton}")
+                    if btton.rect.collidepoint(event.pos):
+                        print(f"hovered over {btton.c.x} {btton.c.y}")
+                        btton.color = active_color
+                        btton.draw()
+                        if btton not in hovered_list:
+                            while hovered_list:
+                                hvbtn = hovered_list.pop()
+                                hvbtn.color = inactive_color
+                                hvbtn.draw()
+                            hovered_list.append(btton)
+                        break
+      
+
+        pygame.display.update()
+        clock.tick(30)
+play_display(board(xlen=5))
