@@ -49,6 +49,27 @@ class board:
                 s += (str(j.side)[0] + " |" + str(j.number)[0]+"| ")
             s += '\n\n'
         return s
+    def get_state(self):
+        return [[(c.side, c.number) for c in a] for a in self.arr]
+    def set_state(self, state = None):
+        if state==None:
+            print("No state passed to set_state")
+            return
+        for i in self.arr:
+            for j in i:
+                j.side, j.number = state[j.x-1][j.y-1]
+    def draw(self):
+        if not hasattr(self.arr[0][0], 'btn'):
+            print("Can't draw cells without buttons")
+            return
+        for i in self.arr:
+            for j in i:
+                if j.side != None:
+                    j.btn.img=img_side[j.side][j.number-1]
+                else:
+                    j.btn.img = None
+                j.btn.draw()
+
 
 
 board1 = board()
@@ -317,6 +338,7 @@ count = 0
 def play_display(b=board1):
     b.init_board()
     b.init_board_cells()
+    b.history = []
     gameExit = False
     sideref = 0
     sides = ['a', 'c']
@@ -327,8 +349,17 @@ def play_display(b=board1):
     x_dstep = y_dstep = min(x_dstep, y_dstep)
     buttonlist = []
     normalButtonList = []
+    def undo(b=b):
+        if b.history:
+            b.set_state(b.history.pop())
+            b.draw()
+            nonlocal sideref
+            sideref = 1 - sideref
+        else:
+            print("Don't joke")
     normalButtonList.append(NormalButton(x_dstep, display_height-100, "Quit", (0, 0, 215), (0, 0, 255), quitGame))
     normalButtonList.append(NormalButton(x_dstep+100, display_height-100, "Restart", (0, 160, 0), (0, 255, 0), b.restart_game))
+    normalButtonList.append(NormalButton(x_dstep+280, display_height-100, "Undo", (200, 200, 0), (250, 250, 0), undo))
     for i in range(ylen):
         for j in range(xlen):
             x = x_init + j * x_dstep
@@ -340,7 +371,6 @@ def play_display(b=board1):
     for button in buttonlist:
         button.draw()
     for button in normalButtonList:
-
         button.draw()
         # print(button)
     hovered_list = []
@@ -355,9 +385,11 @@ def play_display(b=board1):
                         if button.c.side != None and button.c.side != turn:
                             print ("don't be smart, do your turn")
                             break
+                        b.history.append(b.get_state())
                         button.c.move(turn)
                         sideref = 1 - sideref
                         button.draw()
+                        
                 # print(b)
                         break
                 for button in normalButtonList:
