@@ -5,7 +5,6 @@ from pygame.locals import HWSURFACE, DOUBLEBUF, RESIZABLE
 xlen = 10
 ylen = 10
 
-
 class board:
     def __init__(self, xlen=10, ylen=10):
         self.xlen = xlen
@@ -26,6 +25,7 @@ class board:
             self.init_board()
 
     def restart_game(self):
+        print("inside restart")
         try:
             for i in self.arr:
                 for j in i:
@@ -34,6 +34,13 @@ class board:
         except AttributeError:
             self.init_board()
             self.init_board_cells()
+        if hasattr(self.arr[0][0], 'btn'):
+            for i in self.arr:
+                for j in i:
+                    if hasattr(j.btn, 'img'):
+                        del(j.btn.img)
+                        j.btn.draw()
+
 
     def __str__(self):
         s = ""
@@ -66,8 +73,13 @@ class cell():
                 self.n.append(i)
         self.capacity = len(self.n)-1
 
-    def move(self):
+    def move(self, unknown_side=None):
         print('started moving {0} {1}'.format(self.x, self.y))
+        if self.side == None:
+            self.side = unknown_side
+            if unknown_side == None:
+                print(f"can't move over empty cell {self.x} {self.y}")
+                return
         if self.number < self.capacity:
             self.number += 1
         else:
@@ -83,7 +95,7 @@ class cell():
                 print("Too much recursion in call, aborting...")
         if hasattr(self, 'btn'):
             if self.number > 0:
-                self.btn.img = green[self.number-1]
+                self.btn.img = img_side[self.side][self.number-1]
             else:
                 self.btn.img = None
             self.btn.draw()
@@ -184,13 +196,14 @@ clicked_color = blue
 gameIcon = pygame.image.load('imgs/gameIcon.png')
 pygame.display.set_icon(gameIcon)
 try:
-    red = [pygame.image.load(resource_path('imgs/one_red.png')), pygame.image.load(
+    redlist = [pygame.image.load(resource_path('imgs/one_red.png')), pygame.image.load(
         'imgs/two_red.png'), pygame.image.load('imgs/three_red.png')]
-    green = [pygame.image.load('imgs/one_green.png'), pygame.image.load(
+    greenlist = [pygame.image.load('imgs/one_green.png'), pygame.image.load(
         'imgs/two_green.png'), pygame.image.load('imgs/three_green.png')]
 except pygame.error:
     print("couldn't open images")
 
+img_side = {'a' : greenlist, 'c': redlist}
 class Button():
     def __init__(self, x, y, w, h, c):
         self.rect = pygame.Rect(x, y, w, h)
@@ -200,17 +213,38 @@ class Button():
         self.y = y
         self.w = w
         self.h = h
+        self.ic = inactive_color
     def draw(self, img = None):
-        print(f'drawn {self.x} {self.y} at rect {self.rect}')
         pygame.draw.rect(gameDisplay, self.color, self.rect)
         pygame.draw.rect(gameDisplay, (0, 0, 0), self.rect, 1)
         if img != None:
             self.img = img
         if hasattr(self, 'img') and self.img!=None:
             gameDisplay.blit(pygame.transform.scale(self.img, (self.w, self.h)), (self.x, self.y))
-            print(f'so got an image for it')
     def __str__(self):
         return str(self.rect)
+class NormalButton():
+    def __init__(self, x, y, text, ic, ac, callback):
+        self.x = x
+        self.y = y
+        self.text = text
+        self.action = callback
+        self.ac = ac
+        self.ic = ic
+        self.color = ic
+
+    def create_button(self):
+        self.surf = pygame.font.Font(None, 50).render(self.text, True, black)
+        self.rect = self.surf.get_rect(topleft=(self.x, self.y))
+
+    def draw(self, screen=gameDisplay):
+        try:
+            pygame.draw.rect(screen, self.colpr, self.rect)
+            screen.blit(self.surf, self.rect)
+        except AttributeError:
+            self.create_button()
+            pygame.draw.rect(screen, self.color, self.rect)
+            screen.blit(self.surf, self.rect)
 
 
 def writeText(text='Sample text', textfont='freesansbold.ttf', textsize=50, textcolor=black, x=display_width/2, y=display_height/2):
@@ -261,7 +295,9 @@ def empty_button(x, y, w, h, ic, ac, border, c, side):
     else:
         pygame.draw.rect(gameDisplay, ic, (x, y, w, h))
 
-
+def quitGame():
+    pygame.quit()
+    quit()
 def oops():
     print("that's not your cell")
 
@@ -278,16 +314,11 @@ def movefromside(cell, side):
 
 sideref = 0
 count = 0
-def display_00cell(b):
-    global count
-    if count < 10:
-        print(b.arr[0][0].side)
-    count += 1
 def play_display(b=board1):
     b.init_board()
     b.init_board_cells()
     gameExit = False
-    global sideref
+    sideref = 0
     sides = ['a', 'c']
     x_init, y_init = 0, 0
     xlen, ylen = b.ylen, b.xlen
@@ -295,6 +326,9 @@ def play_display(b=board1):
     y_dstep = int(display_height/b.xlen)
     x_dstep = y_dstep = min(x_dstep, y_dstep)
     buttonlist = []
+    normalButtonList = []
+    normalButtonList.append(NormalButton(x_dstep, display_height-100, "Quit", (0, 0, 215), (0, 0, 255), quitGame))
+    normalButtonList.append(NormalButton(x_dstep+100, display_height-100, "Restart", (0, 160, 0), (0, 255, 0), b.restart_game))
     for i in range(ylen):
         for j in range(xlen):
             x = x_init + j * x_dstep
@@ -305,7 +339,10 @@ def play_display(b=board1):
     gameDisplay.fill(white)
     for button in buttonlist:
         button.draw()
-        print(button)
+    for button in normalButtonList:
+
+        button.draw()
+        # print(button)
     hovered_list = []
     while not gameExit:
         turn = sides[sideref]
@@ -315,25 +352,43 @@ def play_display(b=board1):
             if event.type ==pygame.MOUSEBUTTONDOWN:
                 for button in buttonlist:
                     if button.rect.collidepoint(event.pos):
-                        button.c.move()
+                        if button.c.side != None and button.c.side != turn:
+                            print ("don't be smart, do your turn")
+                            break
+                        button.c.move(turn)
+                        sideref = 1 - sideref
                         button.draw()
-                break
+                # print(b)
+                        break
+                for button in normalButtonList:
+                    if button.rect.collidepoint(event.pos):
+                        button.action()
             if event.type == pygame.MOUSEMOTION:
                 for btton in buttonlist:
-                    print(f"{btton}")
+                    # print(f"{btton}")
                     if btton.rect.collidepoint(event.pos):
-                        print(f"hovered over {btton.c.x} {btton.c.y}")
+                        # print(f"hovered over {btton.c.x} {btton.c.y}")
                         btton.color = active_color
                         btton.draw()
                         if btton not in hovered_list:
                             while hovered_list:
                                 hvbtn = hovered_list.pop()
-                                hvbtn.color = inactive_color
+                                hvbtn.color = hvbtn.ic
                                 hvbtn.draw()
                             hovered_list.append(btton)
                         break
-      
+                for btton in normalButtonList:
+                    if btton.rect.collidepoint(event.pos):
+                        btton.color = btton.ac
+                        btton.draw()
+                        if btton not in hovered_list:
+                            while hovered_list:
+                                hvbtn = hovered_list.pop()
+                                hvbtn.color = hvbtn.ic
+                                hvbtn.draw()
+                            hovered_list.append(btton)
+
 
         pygame.display.update()
         clock.tick(30)
-play_display(board(xlen=5))
+play_display(board(xlen=5, ylen = 8))
