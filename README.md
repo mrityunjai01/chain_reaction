@@ -4,7 +4,7 @@ chain reaction game built from pygame
 logic.py
 # How to use on my computer
 1. Download all files into a folder
-2. Run logic.exe
+2. Run logic.exe \n
 Alternate
 https://drive.google.com/open?id=11gxJHExgntNSjwAV8s4ESK2ONlXWtzeK
 1. Download setup.exe from 
