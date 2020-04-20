@@ -234,7 +234,7 @@ class NormalButton():
         self.color = ic
 
     def create_button(self):
-        self.surf = pygame.font.Font(None, 50).render(self.text, True, black)
+        self.surf = pygame.font.Font("freesansbold.ttf", 50).render(self.text, True, black)
         self.rect = self.surf.get_rect(topleft=(self.x, self.y))
 
     def draw(self, screen=gameDisplay):
