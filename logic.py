@@ -9,7 +9,9 @@ class board:
     def __init__(self, xlen=10, ylen=10):
         self.xlen = xlen
         self.ylen = ylen
+        self.no_of_moves = 0
         self.board = []
+        self.alarm = False
 
     def init_board(self):
         self.arr = [[cell(x, y, board=self) for y in range(1, self.ylen+1)]
@@ -95,6 +97,22 @@ class cell():
         self.capacity = len(self.n)-1
 
     def move(self, unknown_side=None):
+        if self.b.no_of_moves > 70:
+            print("Max depth reached")
+            
+            
+            if not self.b.alarm:
+                self.b.restart_game()
+                try:
+                    message("Max depth")
+                except:
+                    print("Too many calls")
+            else:
+                print("deferred alarm")
+            self.b.alarm = True
+            return
+        else:
+            self.b.no_of_moves += 1
         print('started moving {0} {1}'.format(self.x, self.y))
         if self.side == None:
             self.side = unknown_side
@@ -268,60 +286,22 @@ class NormalButton():
             screen.blit(self.surf, self.rect)
 
 
-def writeText(text='Sample text', textfont='freesansbold.ttf', textsize=50, textcolor=black, x=display_width/2, y=display_height/2):
-    textS = pygame.font.Font(textfont, textsize).render(text, True, textcolor)
-    textR = textS.get_rect()
-    textR.center = (int(x), int(y))
-    gameDisplay.blit(textS, textR)
-
-
-def img_button(img, x, y, w, h, ic, ac, border, cell, action=None):
-    mouse = pygame.mouse.get_pos()
-    click = pygame.mouse.get_pressed()
-    if x+w > mouse[0] > x and y+h > mouse[1] > y:
-        pygame.draw.rect(gameDisplay, ac, (x, y, w, h), border)
-        if click[0] == 1 and action != None:
-            print('clicked an img button')
-            action()
-            print(cell.b)
-
-    else:
-        pygame.draw.rect(gameDisplay, ic, (x, y, w, h))
-    img = pygame.transform.scale(img, (w, h))
-    gameDisplay.blit(img, (x, y))
-
-
-def interactive_button(txt, x, y, w, h, ic, ac, action=None):
-    mouse = pygame.mouse.get_pos()
-    click = pygame.mouse.get_pressed()
-    if x+w > mouse[0] > x and y+h > mouse[1] > y:
-        pygame.draw.rect(gameDisplay, ac, (x, y, w, h))
-        if click[0] == 1 and action != None:
-            action()
-    else:
-        pygame.draw.rect(gameDisplay, ic, (x, y, w, h))
-    writeText(txt, textsize=int(0.8*h), x=x+w/2, y=y+h/2)
-
-
-def empty_button(x, y, w, h, ic, ac, border, c, side):
-    mouse = pygame.mouse.get_pos()
-    click = pygame.mouse.get_pressed()
-    if x+w > mouse[0] > x and y+h > mouse[1] > y:
-        pygame.draw.rect(gameDisplay, ac, (x, y, w, h))
-        if click[0] == 1:
-            print('clicked an empty button')
-            c.side = side
-            c.move()
-            print(c.b)
-    else:
-        pygame.draw.rect(gameDisplay, ic, (x, y, w, h))
 
 def quitGame():
     pygame.quit()
     quit()
 def oops():
     print("that's not your cell")
-
+def message(text):
+    textS = pygame.font.Font("freesansbold.ttf", 50).render(text, True, (0, 0, 0))
+    textR = textS.get_rect()
+    textR.center = (int(display_width/2), int(display_height/2))
+    # gameDisplay.fill(white)
+    pygame.draw.rect(gameDisplay, (255, 255, 255), textR)
+    gameDisplay.blit(textS, textR)
+    pygame.display.update()
+    pygame.time.delay(2000)
+    # gameDisplay.fill(white)
 
 sideref = 0
 sides = ['a', 'c']
@@ -335,7 +315,7 @@ def movefromside(cell, side):
 
 sideref = 0
 count = 0
-def play_display(b=board1):
+def play_display_two_player_mode(b=board1):
     b.init_board()
     b.init_board_cells()
     b.history = []
@@ -384,8 +364,10 @@ def play_display(b=board1):
                     if button.rect.collidepoint(event.pos):
                         if button.c.side != None and button.c.side != turn:
                             print ("don't be smart, do your turn")
+                            message("That's not your cell")
                             break
                         b.history.append(b.get_state())
+                        b.no_of_moves = 0
                         button.c.move(turn)
                         sideref = 1 - sideref
                         button.draw()
@@ -419,8 +401,7 @@ def play_display(b=board1):
                                 hvbtn.color = hvbtn.ic
                                 hvbtn.draw()
                             hovered_list.append(btton)
-
-
         pygame.display.update()
         clock.tick(30)
-play_display(board(xlen=5, ylen = 8))
+
+play_display_two_player_mode(board(xlen=3, ylen = 3))
